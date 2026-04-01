@@ -4,9 +4,3 @@ gdown
 geopandas
 rasterio
 localtileserver
-rio-tiler
-folium
-libgdal-dev
-gdal-bin
-python3-gdal
-libproj-dev
