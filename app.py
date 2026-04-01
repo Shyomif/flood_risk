@@ -4,65 +4,62 @@ import gdown
 import os
 import geopandas as gpd
 
-# 1. إعدادات الصفحة
 st.set_page_config(layout="wide", page_title="محلل مخاطر الفيضانات")
 
-st.markdown("<h2 style='text-align: center; color: #1E88E5;'> خريطة خطر الفيضانات</h2>", unsafe_allow_html=True)
-st.markdown("---")
+st.markdown("<h2 style='text-align: center;'>خارطة مخاطر الفيضانات - إدلب</h2>", unsafe_allow_html=True)
 
-# 2. وظيفة تحميل الملفات
+# دالة محسنة للتحميل من قوقل درايف لضمان العمل على السحاب
 @st.cache_data
 def download_data(file_id, output):
+    url = f'https://drive.google.com/uc?id={file_id}'
     if not os.path.exists(output):
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, output, quiet=False)
+        gdown.download(url, output, quiet=False, fuzzy=True)
     return output
 
+# معرفات الملفات (تأكد أنها عامة Anyone with the link في درايف)
 TIF_ID = '15HLwgjj99QyErLu_BXacfKxDe0JxyKBy'
 JSON_ID = '15XmVHfx3kiuomBxDqx19qry8qoH2m9bI'
 
 try:
-    with st.spinner('جاري تحضير الطبقات والأسماء...'):
-        tif_path = download_data(TIF_ID, "flood_risk.tif")
-        json_path = download_data(JSON_ID, "idleb.json")
+    # تحميل الملفات
+    tif_path = download_data(TIF_ID, "flood_risk.tif")
+    json_path = download_data(JSON_ID, "idleb.json")
 
-    # 3. معالجة الحدود
+    # قراءة الحدود والتأكد من الإحداثيات
     gdf = gpd.read_file(json_path)
     if gdf.crs is None or gdf.crs != "EPSG:4326":
         gdf = gdf.set_crs("EPSG:4326", allow_override=True)
 
-    # 4. إنشاء الخريطة بخلفية محايدة (أو قمر صناعي بدون أسماء)
-    # استخدمنا 'SATELLITE' هنا لإظهار الأرض فقط بدون كتابة
+    # إنشاء الخريطة
     m = leafmap.Map(google_map="SATELLITE")
 
-    # 5. إضافة طبقة الخطر (مع إخفاء الصفر "الأسود")
+    # إضافة طبقة الخطر (تأكد من استخدام nodata=0 لإخفاء الأسود)
+    # ملاحظة: استخدمنا طريقة add_raster المستقرة للسحاب
     m.add_raster(
         tif_path, 
         palette="RdYlGn_r", 
         nodata=0, 
         vmin=1, 
-        layer_name="مستوى الخطورة (النهر)", 
+        layer_name="مستوى الخطورة", 
         opacity=0.8
     )
 
-    # 6. إضافة حدود المحافظة
+    # إضافة الحدود بلون واضح جداً
     m.add_gdf(
         gdf, 
         layer_name="حدود إدلب", 
-        style={'color': '#00FFFF', 'weight': 2, 'fillOpacity': 0}
+        style={'color': '#00FFFF', 'weight': 3, 'fillOpacity': 0}
     )
 
-    # 7. الإضافة السحرية: طبقة أسماء المناطق فقط (Labels Only)
-    # هذه الطبقة ستضع أسماء المدن والقرى فوق طبقة الخطر
+    # إضافة الأسماء فوق كل شيء
     m.add_basemap("CartoDB.PositronOnlyLabels")
 
-    # 8. ضبط الكاميرا
+    # التركيز على المنطقة
     m.zoom_to_gdf(gdf)
 
-    # 9. عرض الخريطة
+    # عرض الخريطة
     m.to_streamlit(height=750)
 
-    st.info("ℹ️ تم دمج أسماء المناطق فوق طبقة التحليل لسهولة التحديد المكاني.")
-
 except Exception as e:
-    st.error(f"حدث خطأ: {e}")
+    st.error(f"حدث خطأ أثناء تحميل الطبقات: {e}")
+    st.info("تأكد من أن ملفات Google Drive منضبطة على خيار 'Anyone with the link'")
