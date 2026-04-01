@@ -1,47 +1,58 @@
 import streamlit as st
 import leafmap.foliumap as leafmap
-import geopandas as gpd
 import gdown
 import os
+import geopandas as gpd
 
-st.set_page_config(layout="wide")
+# 1. إعدادات الصفحة
+st.set_page_config(layout="wide", page_title="محلل مخاطر الفيضانات - نسخة خفيفة")
 
-# معرفات الملفات
-TIF_ID = '15HLwgjj99QyErLu_BXacfKxDe0JxyKBy'
+st.markdown("<h2 style='text-align: center; color: #1E88E5;'>خارطة مخاطر الفيضانات التفاعلية (إدلب)</h2>", unsafe_allow_html=True)
+
+# 2. وظيفة تحميل الملفات
+@st.cache_data
+def download_data(file_id, output):
+    if not os.path.exists(output):
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+    return output
+
+# معرفات الملفات (تم تحديث ملف الخطر للملف الصغير)
+TIF_ID = '1UNugklEQgWia_nSf-6KeWMkNlwG0AnKw' 
 JSON_ID = '15XmVHfx3kiuomBxDqx19qry8qoH2m9bI'
 
-@st.cache_data
-def get_file(file_id, name):
-    url = f'https://drive.google.com/uc?id={file_id}&confirm=t'
-    if not os.path.exists(name):
-        gdown.download(url, name, quiet=False)
-    return name
-
 try:
-    # تحميل الحدود فقط (لأنها خفيفة)
-    json_path = get_file(JSON_ID, "idleb.json")
-    tif_path = get_file(TIF_ID, "flood_risk.tif") # سيحمله السيرفر في الخلفية
+    with st.spinner('جاري تحميل الطبقات...'):
+        tif_path = download_data(TIF_ID, "flood_risk_low.tif")
+        json_path = download_data(JSON_ID, "idleb.json")
 
+    # 3. قراءة الحدود
+    gdf = gpd.read_file(json_path)
+    if gdf.crs is None or gdf.crs != "EPSG:4326":
+        gdf = gdf.set_crs("EPSG:4326", allow_override=True)
+
+    # 4. إنشاء الخريطة
     m = leafmap.Map(google_map="SATELLITE")
 
-    # الطريقة البديلة: استخدام محرك محلي للرندر (Local Tile Server)
-    # هذه الإضافة تجعل السيرفر يعالج الملف كأجزاء صغيرة جداً
+    # 5. إضافة طبقة الخطر (تدرج من الأخضر للأحمر مع إخفاء الصفر)
     m.add_raster(
-        tif_path,
-        palette="RdYlGn_r",
-        nodata=0,
-        vmin=1,
-        layer_name="خطر الفيضان",
+        tif_path, 
+        palette="RdYlGn_r", 
+        nodata=0, 
+        vmin=1, 
+        layer_name="مستوى الخطورة", 
         opacity=0.8
     )
 
-    # إضافة الحدود والأسماء
-    gdf = gpd.read_file(json_path)
-    m.add_gdf(gdf, layer_name="الحدود", style={'color': 'cyan', 'weight': 2, 'fillOpacity': 0})
+    # 6. إضافة الحدود والأسماء
+    m.add_gdf(gdf, layer_name="حدود إدلب", style={'color': '#00FFFF', 'weight': 2, 'fillOpacity': 0})
     m.add_basemap("CartoDB.PositronOnlyLabels")
 
+    # 7. ضبط الكاميرا والعرض
     m.zoom_to_gdf(gdf)
     m.to_streamlit(height=750)
 
+    st.success("✅ تم تحميل الطبقات بنجاح باستخدام النسخة الخفيفة.")
+
 except Exception as e:
-    st.error(f"خطأ: {e}")
+    st.error(f"حدث خطأ: {e}")
