@@ -4,12 +4,8 @@ import gdown
 import os
 import geopandas as gpd
 
-# 1. إعدادات الصفحة
-st.set_page_config(layout="wide", page_title="محلل مخاطر الفيضانات - نسخة خفيفة")
+st.set_page_config(layout="wide", page_title="محلل مخاطر الفيضانات")
 
-st.markdown("<h2 style='text-align: center; color: #1E88E5;'>خارطة مخاطر الفيضانات التفاعلية (إدلب)</h2>", unsafe_allow_html=True)
-
-# 2. وظيفة تحميل الملفات
 @st.cache_data
 def download_data(file_id, output):
     if not os.path.exists(output):
@@ -17,42 +13,35 @@ def download_data(file_id, output):
         gdown.download(url, output, quiet=False)
     return output
 
-# معرفات الملفات (تم تحديث ملف الخطر للملف الصغير)
+# الروابط المحدثة (الملف الصغير والحدود)
 TIF_ID = '1UNugklEQgWia_nSf-6KeWMkNlwG0AnKw' 
 JSON_ID = '15XmVHfx3kiuomBxDqx19qry8qoH2m9bI'
 
 try:
-    with st.spinner('جاري تحميل الطبقات...'):
-        tif_path = download_data(TIF_ID, "flood_risk_low.tif")
-        json_path = download_data(JSON_ID, "idleb.json")
+    tif_path = download_data(TIF_ID, "flood_risk_small.tif")
+    json_path = download_data(JSON_ID, "idleb.json")
 
-    # 3. قراءة الحدود
-    gdf = gpd.read_file(json_path)
-    if gdf.crs is None or gdf.crs != "EPSG:4326":
-        gdf = gdf.set_crs("EPSG:4326", allow_override=True)
-
-    # 4. إنشاء الخريطة
+    # إنشاء الخريطة
     m = leafmap.Map(google_map="SATELLITE")
 
-    # 5. إضافة طبقة الخطر (تدرج من الأخضر للأحمر مع إخفاء الصفر)
+    # إضافة طبقة الخطر (استخدام الطريقة الأكثر استقراراً للسحاب)
     m.add_raster(
         tif_path, 
         palette="RdYlGn_r", 
         nodata=0, 
         vmin=1, 
-        layer_name="مستوى الخطورة", 
-        opacity=0.8
+        layer_name="مستوى الخطورة"
     )
 
-    # 6. إضافة الحدود والأسماء
+    # إضافة الحدود
+    gdf = gpd.read_file(json_path)
     m.add_gdf(gdf, layer_name="حدود إدلب", style={'color': '#00FFFF', 'weight': 2, 'fillOpacity': 0})
+    
+    # إضافة الأسماء
     m.add_basemap("CartoDB.PositronOnlyLabels")
 
-    # 7. ضبط الكاميرا والعرض
     m.zoom_to_gdf(gdf)
-    m.to_streamlit(height=750)
-
-    st.success("✅ تم تحميل الطبقات بنجاح باستخدام النسخة الخفيفة.")
+    m.to_streamlit(height=700)
 
 except Exception as e:
-    st.error(f"حدث خطأ: {e}")
+    st.error(f"خطأ تقني: {e}")
