@@ -11,3 +11,10 @@ server-thread
 scooby
 psutil
 rio-tiler
+streamlit
+leafmap
+gdown
+geopandas
+rasterio
+localtileserver
+rio-tiler
