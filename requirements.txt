@@ -3,4 +3,9 @@ leafmap
 gdown
 geopandas
 rasterio
-folium
+localtileserver
+xarray
+rioxarray
+netCDF4
+server-thread
+scooby
