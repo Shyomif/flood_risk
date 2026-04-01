@@ -9,3 +9,4 @@ rioxarray
 netCDF4
 server-thread
 scooby
+psutil
