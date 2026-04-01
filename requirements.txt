@@ -10,5 +10,4 @@ netCDF4
 server-thread
 scooby
 psutil
-localtileserver
 rio-tiler
