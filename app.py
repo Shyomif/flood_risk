@@ -1,45 +1,33 @@
 import streamlit as st
 import leafmap.foliumap as leafmap
-import requests
-import os
+import ee
+import json
 
-st.set_page_config(layout="wide")
-st.title("محلل مخاطر الفيضانات - إدلب والساحل")
+# دالة لتهيئة Earth Engine باستخدام Secrets
+def initialize_ee():
+    try:
+        # جلب البيانات من Secrets
+        credentials_dict = dict(st.secrets["gcp_service_account"])
+        credentials = ee.ServiceAccountCredentials(credentials_dict['client_email'], key_data=credentials_dict['private_key'])
+        ee.Initialize(credentials)
+        return True
+    except Exception as e:
+        st.error(f"خطأ في الاتصال بـ GEE: {e}")
+        return False
 
-# 1. الروابط المباشرة (Raw)
-RASTER_URL = "https://raw.githubusercontent.com/Shyomif/flood_risk/main/flood_risk_low.tif"
-RIVERS_URL = "https://raw.githubusercontent.com/Shyomif/flood_risk/main/acc.json"
-IDLEB_URL = "https://raw.githubusercontent.com/Shyomif/flood_risk/main/idleb.json"
+if initialize_ee():
+    st.success("تم الاتصال بـ Google Earth Engine بنجاح!")
+    
+    # إعداد الخريطة
+    m = leafmap.Map(center=[35.9, 36.6], zoom=10)
 
-# 2. تحميل الملف محلياً (ضروري جداً لضمان القراءة)
-local_tif = "hazard_layer.tif"
-if not os.path.exists(local_tif):
-    with st.spinner("جاري جلب بيانات الخطر من السيرفر..."):
-        r = requests.get(RASTER_URL)
-        with open(local_tif, "wb") as f:
-            f.write(r.content)
+    # --- سحب طبقة من GEE (مثلاً نموذج الارتفاع الرقمي لـ إدلب) ---
+    dem = ee.Image('USGS/SRTMGL1_003')
+    vis_params = {'min': 0, 'max': 1000, 'palette': ['blue', 'green', 'red']}
+    m.add_ee_layer(dem, vis_params, "GEE Elevation (SRTM)")
 
-# 3. إعداد الخريطة
-# تأكد من أن الإحداثيات [35.9, 36.6] هي مركز منطقة الدراسة فعلاً
-m = leafmap.Map(center=[35.9, 36.6], zoom=10, google_map="HYBRID")
+    # --- سحب البيانات الأخرى من GitHub ---
+    RIVERS_URL = "https://raw.githubusercontent.com/Shyomif/flood_risk/main/acc.json"
+    m.add_geojson(RIVERS_URL, layer_name="شبكة الأنهار (GitHub)")
 
-# 4. إضافة الطبقات المتجهية أولاً (للتأكد من أن الخريطة تعمل)
-m.add_geojson(RIVERS_URL, layer_name="شبكة الأنهار", style={'color': 'blue', 'weight': 1.5})
-m.add_geojson(IDLEB_URL, layer_name="حدود إدلب", style={'color': 'red', 'fillOpacity': 0, 'weight': 2})
-
-# 5. محاولة إضافة الراستر بطريقة مستقرة
-try:
-    # نستخدم localtileserver لعرض الملف المحلي
-    m.add_raster(
-        local_tif, 
-        layer_name="مستوى الخطر", 
-        colormap="terrain", 
-        opacity=0.7,
-        nodata=0 # تجاهل القيم الصفرية إذا كانت تغطي الخريطة
-    )
-except Exception as e:
-    st.error(f"فشل عرض طبقة الراستر: {e}")
-    st.info("نصيحة: تأكد أن نظام إحداثيات الملف هو EPSG:4326")
-
-# 6. عرض الخريطة
-m.to_streamlit(height=700)
+    m.to_streamlit(height=700)
