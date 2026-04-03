@@ -6,3 +6,4 @@ rasterio
 localtileserver
 rio-tiler
 folium
+xarray
