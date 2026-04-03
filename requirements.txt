@@ -1,9 +1,6 @@
 streamlit
 leafmap
-gdown
-geopandas
 rasterio
 localtileserver
-rio-tiler
-folium
-xarray
+psutil
+requests
