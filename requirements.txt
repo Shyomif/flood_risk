@@ -4,3 +4,6 @@ rasterio
 localtileserver
 psutil
 requests
+earthengine-api
+localtileserver
+requests
