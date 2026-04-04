@@ -2,8 +2,8 @@ import streamlit as st
 import leafmap.foliumap as leafmap
 
 # 1. إعدادات الصفحة
-st.set_page_config(layout="wide", page_title="خريطة مخاطر إدلب")
-st.title("تحليل مخاطر الفيضانات - إدلب (تدرج أخضر-أحمر)")
+st.set_page_config(layout="wide", page_title="خريطة مخاطر الفيضان")
+st.title("خريطة خطر الفيضانات")
 
 # 2. الروابط من GitHub
 url_flood_json = "https://raw.githubusercontent.com/Shyomif/flood_risk/main/flood_decimal.json"
@@ -15,31 +15,41 @@ m = leafmap.Map(center=[35.9, 36.6], zoom=10)
 m.add_basemap("Esri.WorldImagery")
 
 try:
-    # أ. حدود إدلب العامة
+    # أ. حدود إدلب العامة (أبيض شفاف)
     m.add_geojson(
-        url_idleb_json, 
-        layer_name="حدود إدلب", 
-        style={'color': '#ffffff', 'weight': 1.2, 'fillOpacity': 0}
+        url_idleb_json,
+        layer_name="حدود إدلب",
+        style={'color': '#000000', 'weight': 1.2, 'fillOpacity': 0}
     )
 
     # ب. حدود منطقة ACC (أصفر مقطع)
     m.add_geojson(
-        url_acc_json, 
-        layer_name="حدود منطقة ACC", 
-        style={'color': '#ffff00', 'weight': 3, 'fillOpacity': 0, 'dashArray': '7, 7'}
+        url_acc_json,
+        layer_name="مجرى النهر ACC",
+        style={'color': '#0000ff', 'weight': 3, 'fillOpacity': 0, 'dashArray': '7, 7'}
     )
 
-    # ج. طبقة المخاطر: تم إلغاء الأزرق باستخدام RdYlGn_r
-    # يبدأ من الأخضر (قيم منخفضة) -> أصفر -> أحمر (قيم مرتفعة)
+    # ج. طبقة المخاطر - ألوان مخصصة تشبه صورة الفيضان
     m.add_data(
         url_flood_json,
-        column="DN", 
-        cmap="RdYlGn_r", 
+        column="DN",
+        colors=[
+            "#91cf60",   # 1 - أخضر فاتح (خطر منخفض)
+            "#fee08b",   # 2 - أصفر (خطر متوسط)
+            "#fc8d59",   # 3 - برتقالي (خطر عالي)
+            "#ef6548",   # 4 - برتقالي-أحمر
+            "#d7301f"    # 5 - أحمر غامق (خطر مرتفع جداً)
+        ],
         layer_name="مستويات الخطر",
-        scheme="Quantiles", 
-        k=5, 
-        legend_title="درجة الخطورة",
-        fill_opacity=0.7
+        scheme="Quantiles",
+        k=5,
+        legend_title="درجة الخطورة (منخفض → مرتفع)",
+        fill_opacity=0.65,
+        style_kwds={
+            'weight': 0.8,
+            'color': '#333333',      # لون الحدود بين المناطق
+            'opacity': 0.6
+        }
     )
 
     m.to_streamlit(height=800)
@@ -49,11 +59,12 @@ except Exception as e:
 
 # 4. شريط جانبي محدث
 st.sidebar.markdown("""
-### مفتاح الألوان الجديد:
-- 🟢 **أخضر:** خطر منخفض (آمن).
-- 🟡 **أصفر:** خطر متوسط.
-- 🟠 **برتقالي:** خطر عالٍ.
-- 🔴 **أحمر:** خطر مرتفع جداً.
+### مفتاح الألوان (طبقة الفيضان):
+
+- 🟢 **#91cf60** — خطر منخفض   
+- 🟡 **#fee08b** — خطر متوسط  
+- 🟠 **#fc8d59** — خطر عالي  
+- 🟠🔴 **#ef6548** — خطر مرتفع  
+- 🔴 **#d7301f** — خطر مرتفع جداً )
+
 ---
-*تم إزالة اللون الأزرق بناءً على الطلب.*
-""")
