@@ -7,3 +7,4 @@ requests
 earthengine-api
 localtileserver
 requests
+mapclassify
